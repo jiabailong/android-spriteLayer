@@ -1,4 +1,4 @@
-# android spriteLayer
+# android level spriteLayer
 <h1>android多图层导航</h1>
 <p>
 此项目为一个图层导航工程，图层构成有精灵对象，碰撞监测点，及位置示意图。操作方式采用游戏式风格，支持碰撞监测点的自定义添加，图层图层可拖动。
