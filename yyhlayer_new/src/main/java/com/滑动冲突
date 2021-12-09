@@ -1,0 +1,276 @@
+package com.jd.lib.evaluatecenter.view;
+
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.util.AttributeSet;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.view.VelocityTracker;
+import android.view.View;
+import android.view.ViewParent;
+import android.widget.LinearLayout;
+import android.widget.Scroller;
+
+/**
+ * @author jiabailong1
+ * SmoothLayout
+ */
+public class SmoothLayout extends LinearLayout {
+    Scroller scroller;
+    boolean canmove = true;
+    UpEvent upEvent;
+    int maxDistance;
+    ViewParent parent;
+
+
+    IScrollListener iScrollListener;
+    private static final String LEFT="left";
+    private static final String RIGHT="right";
+    View right ;
+    View left;
+    public SmoothLayout(Context context) {
+        super(context);
+        // TODO Auto-generated constructor stub
+        init(context);
+    }
+
+    public SmoothLayout(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        // TODO Auto-generated constructor stub
+        init(context);
+    }
+
+    public SmoothLayout(Context context, AttributeSet attrs, int defStyle) {
+        super(context, attrs, defStyle);
+        // TODO Auto-generated constructor stub
+        init(context);
+    }
+
+    public void init(Context c) {
+        this.setOrientation(HORIZONTAL);
+        scroller = new Scroller(c);
+
+//		scrollTo(x, y);
+
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        parent= this.getParent();
+        Log.d("@ATI","parent---="+parent);
+    }
+
+    @SuppressLint("NewApi")
+    public void smoothBy(int dx, int dy) {
+        scroller.startScroll((int) getX(), (int) getY(), dx, dy, 500);
+    }
+
+    public void addUpEvent(UpEvent upEvent) {
+        this.upEvent = upEvent;
+    }
+
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        Log.d("@ATI","iScrollListener.isScrollEnd()----"+iScrollListener.isScrollEnd());
+        if(iScrollListener!=null&&iScrollListener.isScrollEnd()){
+
+            moving(ev);
+        } else{
+            if(isNeedReset()){
+                 reset("isNeedReset");
+            }
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent ev) {
+        // single touch
+
+//        getRootView().invalidate();
+
+        return true;
+    }
+
+    float lastYPosition, lastXPositon;
+    float x, y;
+    VelocityTracker velocityTracker = VelocityTracker.obtain();
+
+    @SuppressLint("NewApi")
+    public void moving(MotionEvent ev) {
+
+        velocityTracker.addMovement(ev);
+        velocityTracker.computeCurrentVelocity(100);
+        switch (ev.getAction() & MotionEvent.ACTION_MASK) {
+            case MotionEvent.ACTION_DOWN:
+                canmove = true;
+                x = ev.getX();
+                y = ev.getY();
+                lastXPositon = x;
+                lastYPosition = y;
+
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                int curX = (int) ev.getX();
+                int curY = (int) ev.getY();
+                int dx = (int) (lastXPositon - curX);
+                int dy = (int) (lastYPosition - curY);
+                lastXPositon = curX;
+                lastYPosition = curY;
+                if(parent!=null){
+                    parent.requestDisallowInterceptTouchEvent(true);
+                }
+
+                    if (maxDistance > 0 && (getScrollX() + dx) > maxDistance) {
+                        reset("ACTION_MOVE");
+                    } else if (getScrollX() + dx>0) {
+                        Log.i("@ATI==", "scrollBy="+dx+" sx"+getScrollX());
+
+                        scrollBy(dx, 0);
+                        invalidate();
+                    }
+
+
+                break;
+
+            case MotionEvent.ACTION_OUTSIDE:
+            case MotionEvent.ACTION_UP:
+                if(parent!=null){
+                    parent.requestDisallowInterceptTouchEvent(false);
+                }
+
+                reset("ACTION_UP");
+
+                if (upEvent != null) {
+                    int u_x = (int) ev.getX();
+                    int u_y = (int) ev.getY();
+                    int distan_x = (int) (u_x - x);
+                    int distan_y = (int) (u_y - y);
+                    upEvent.actionUp(ev, this, distan_x, distan_y);
+                }
+                canmove = false;
+                break;
+        }
+    }
+//	public void initCenter(){
+//		int x=SmoothLayout.this.getMeasuredWidth()-SmoothLayout.this.getChildAt(0).getMeasuredWidth();
+//		int y=SmoothLayout.this.getMeasuredHeight()-SmoothLayout.this.getChildAt(0).getMeasuredHeight();
+//
+//		scrollTo(-x/2, -y/2);
+////
+//	}
+
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+
+        right = findViewWithTag(RIGHT);
+        left= findViewWithTag(LEFT);
+        maxDistance = right.getMeasuredWidth();
+
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        left.layout(l, t, l + left.getMeasuredWidth(), b);
+        right.layout(left.getMeasuredWidth(), t, left.getMeasuredWidth() + right.getMeasuredWidth(), b);
+    }
+
+    public void reset(String tag) {
+        Log.i("@ATI==", "reset-"+tag);
+
+        int x = SmoothLayout.this.getMeasuredWidth() - SmoothLayout.this.getChildAt(0).getMeasuredWidth();
+        int y = SmoothLayout.this.getMeasuredHeight() - SmoothLayout.this.getChildAt(0).getMeasuredHeight();
+
+        int sx, sy;
+
+        sy = this.getScrollY();
+        sx = this.getScrollX();
+//        scroller.startScroll(sx, sy, -sx - x / 2, -sy - y / 2, 2000);
+        scroller.startScroll(sx, 0, sx * (-1), 02, 50);
+        invalidate();
+
+    }
+    public boolean isNeedReset(){
+        return this.getScrollX()!=0;
+    }
+
+    @Override
+    public void computeScroll() {
+        if (scroller.computeScrollOffset()) {
+            // View v=getChildAt(0);
+            // hitview.scrollTo(scroller.getCurrX(), scroller.getCurrY());
+            scrollTo(scroller.getCurrX(), scroller.getCurrY());
+            invalidate();
+        }
+        super.computeScroll();
+    }
+
+    public IScrollListener getScrollListener() {
+        return iScrollListener;
+    }
+
+    public void setScrollListener(IScrollListener iScrollListener) {
+        this.iScrollListener = iScrollListener;
+    }
+    public interface UpEvent {
+        public void actionUp(MotionEvent ev, SmoothLayout smooth, int distan_x, int distan_y);
+    }
+
+    public interface IScrollListener {
+        public boolean isScrollEnd();
+    }
+    /**
+     * 滑动距离及坐标 归还父控件焦点
+     */
+    private float xDistance, yDistance, xLast, yLast;
+    /**
+     * 是否是左右滑动
+     */
+    private boolean mIsBeingDragged = true;
+
+    /**
+     * 滑动冲突
+     * @return
+     */
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        getParent().requestDisallowInterceptTouchEvent(true);
+        switch (ev.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                xDistance = yDistance = 0f;
+                xLast = ev.getX();
+                yLast = ev.getY();
+                break;
+            case MotionEvent.ACTION_MOVE:
+                final float curX = ev.getX();
+                final float curY = ev.getY();
+                xDistance += Math.abs(curX - xLast);
+                yDistance += Math.abs(curY - yLast);
+                xLast = curX;
+                yLast = curY;
+                if (!mIsBeingDragged) {
+                    float f = 0.5f;
+                    if (yDistance < xDistance * f) {//小于30度都左右滑
+                        mIsBeingDragged = true;
+                        getParent().requestDisallowInterceptTouchEvent(true);
+                    } else {
+                        mIsBeingDragged = false;
+                        getParent().requestDisallowInterceptTouchEvent(false);
+                    }
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+
+                mIsBeingDragged = false;
+                break;
+            default:
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+}
